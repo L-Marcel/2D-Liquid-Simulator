@@ -1,0 +1,10 @@
+extends Node2D
+
+@export var water_server : LiquidServer;
+
+func _input(event):
+	if event is InputEventMouseButton && event.is_pressed():
+		var pos = Vector2i(get_local_mouse_position()/water_server.get_quadrant_size());
+		print("add: ", 1);
+		water_server.start();
+		water_server.add_liquid(pos.x, pos.y, 1);

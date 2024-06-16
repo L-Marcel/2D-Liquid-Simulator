@@ -1,0 +1,20 @@
+[gd_scene load_steps=4 format=3 uid="uid://b4fssv5ogweg"]
+
+[ext_resource type="Script" path="res://addons/liquidsimulator/Liquid.gd" id="1_licqf"]
+
+[sub_resource type="Gradient" id="Gradient_ggunt"]
+offsets = PackedFloat32Array(0)
+colors = PackedColorArray(0.157, 0.714, 1, 0.6)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_mkokw"]
+gradient = SubResource("Gradient_ggunt")
+width = 16
+height = 16
+
+[node name="Liquid" type="Node2D" node_paths=PackedStringArray("sprite")]
+script = ExtResource("1_licqf")
+sprite = NodePath("Sprite")
+max_opacity = 0.6
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture = SubResource("GradientTexture2D_mkokw")

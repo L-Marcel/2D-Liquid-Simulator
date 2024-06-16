@@ -1,16 +1,24 @@
 class_name Liquid
 extends Node2D
 
+# TODO: Atualizar lista de propriedades no editor
+
 ## A basic liquid class that can be used to create any kind of liquid.
 ##
 ## Used by [LiquidServer] to simulate liquid behavior.
 
 ## The sprite that will be used to represent the liquid.
 @export var sprite : Sprite2D;
-## If [code]true[/code], the liquid will snap to the nearest pixel.
+## If [code]true[/code], the liquid will snap to the nearest pixel using [member Liquid.sprite.scale.y].
 @export var snap_pixel : bool = false;
 ## If [code]true[/code], the liquid will be absorbed by the floor when [code]amount[/code] is less than [member LiquidServer.min_amount].
 @export var floor_can_absorb : bool = false;
+## If [code]true[/code], [member Liquid.sprite.modulate.a] is equals to amount.
+@export var opacity_is_amount : bool = true;
+## The max value of [member Liquid.sprite.modulate.a].
+@export var max_opacity : float = 1;
+## The min value of [member Liquid.sprite.modulate.a].
+@export var min_opacity : float = 0;
 
 # Region Signals
 ## Emitted when refreshed by [method LiquidServer.refresh_cell] is called.

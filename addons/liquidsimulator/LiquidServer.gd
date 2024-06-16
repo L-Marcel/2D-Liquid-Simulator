@@ -1,6 +1,10 @@
 class_name LiquidServer
 extends Node
 
+# TODO: Atualizar lista de propriedades no editor
+# TODO: Limpar células fora do mapa
+# TODO: Impedir de criar células dentro dos tiles
+
 ## Required for liquid simulation.
 ## 
 ## This class is responsible for managing the liquid simulation. [br]
@@ -12,6 +16,10 @@ extends Node
 @export var refresh_rate : float = 0.08;
 ## The size of the quadrants. [br]
 ## [color=yellow]Warning:[/color] Small quadrants means more [Liquid] cels and less performance.
+## Value used to determine when two amounts are close enough to be considered equal. [br]
+## [color=yellow]Warning:[/color] This is only used in horizontal distribution to decide when it is no longer necessary to distribute the liquid across the surface. [br]
+## [color=green]Tip: [/color] A higher value may make a slight difference in performance by making the system stop earlier, but this will harm horizontal distribution.
+@export var epsilon : float = 0.001;
 @export var _quadrant_size : int = 16 :
 	set(value):
 		if value >= 1:
@@ -43,15 +51,15 @@ var _map : TileMapLayer;
 
 @export_subgroup("Amount")
 ## The maximum amount of [Liquid] that can be in a cell.
-@export_range(0.0, 1.0, 0.005) var max_amount : float = 1.0;
+@export_range(0.0, 1.0, 0.001) var max_amount : float = 1.0;
 ## The minimum amount of [Liquid] that can be in a cell.
-@export_range(0.0, 1.0, 0.005) var min_amount : float = 0.005;
+@export_range(0.0, 1.0, 0.001) var min_amount : float = 0.005;
 
 @export_subgroup("Flow")
 ## The maximum flow value.
-@export_range(0.0, 1.0, 0.005) var max_flow_value : float = 1.0;
+@export_range(0.001, 1.0, 0.001) var max_flow_value : float = 1.0;
 ## The minimum [b]horizontal[/b] flow value.
-@export_range(0.0, 1.0, 0.005) var min_flow_value : float = 0.005;
+@export_range(0.001, 1.0, 0.001) var min_flow_value : float = 0.005;
 
 # Region Signals
 ## Emitted when the simulation starts.
@@ -68,9 +76,20 @@ var _started : bool = false :
 		if value:
 			started.emit();
 		else:
+			_fall_flow = 0;
+			_decompression_flow = 0;
+			_left_flow = 0;
+			_right_flow = 0;
 			stopped.emit();
 var _total_amount : float = 0;
 var _time_passed : float = 0;
+
+#region Monitor
+var _fall_flow : int = 0;
+var _decompression_flow : int = 0;
+var _left_flow : int = 0;
+var _right_flow : int = 0;
+#endregion
 
 var _cells : Array[Liquid] = [];
 var _cells_positions : Dictionary = {};
@@ -92,6 +111,10 @@ func _ready():
 	Performance.add_custom_monitor("liquid/instances", _cells.size);
 	Performance.add_custom_monitor("liquid/total_amount", get_total_amount);
 	Performance.add_custom_monitor("liquid/is_running", func(): return int(is_running()));
+	Performance.add_custom_monitor("liquid/fall_flow", _get_fall_flow);
+	Performance.add_custom_monitor("liquid/compression_flow", _get_decompression_flow);
+	Performance.add_custom_monitor("liquid/left_flow", _get_left_flow);
+	Performance.add_custom_monitor("liquid/right_flow", _get_right_flow);
 	start();
 func _process(delta):
 	if not _started:
@@ -99,6 +122,11 @@ func _process(delta):
 
 	_time_passed += delta;
 	if _time_passed >= refresh_rate:
+		_fall_flow = 0;
+		_decompression_flow = 0;
+		_left_flow = 0;
+		_right_flow = 0;
+
 		var _updated = _update_simulation();
 		refresh_all();
 		updated.emit();
@@ -109,6 +137,7 @@ func _process(delta):
 func _update_simulation():
 	var new_cells : Array[Liquid] = [];
 
+	# Rules
 	for cell in _cells:
 		cell.reset_neighbors();
 		cell.bottom_has_flow = false;
@@ -116,86 +145,31 @@ func _update_simulation():
 		if cell.amount <= min_amount && !_is_map_cell_empty(cell.get_x(), cell.get_y() + 1) && (cell.floor_can_absorb || cell.amount <= 0):
 			request_queue_free(cell);
 			continue;
-		if _is_map_bottom_cell_empty(cell.get_x(), cell.get_y()):
-			var bottom_amount : float = 0;
-			var bottom_cell : Liquid = get_cell_by_position(cell.get_x(), cell.get_y() + 1);
-			if bottom_cell:
-				bottom_amount = bottom_cell.new_amount;
-			var flow : float = clamp(1 - bottom_amount, 0, min(max_flow_value, cell.new_amount));
-			
-			if flow != 0:
-				if !bottom_cell:
-					bottom_cell = _create_cell(cell.get_x(), cell.get_y() + 1, 0);
-					new_cells.append(bottom_cell);
-					_cells_positions[bottom_cell.get_uid()] = bottom_cell;
-				bottom_cell.new_amount += flow;
-				cell.bottom_has_flow = true;
-				cell.new_amount -= flow;
-				#print("flow bottom: ", cell.new_amount, " -> ", bottom_cell.new_amount, " (%f)" % [flow]);
+		
+		_apply_fall_rule(cell, new_cells);
 		
 		if cell.new_amount <= 0:
 			request_queue_free(cell);
 			continue;
-		if _is_map_left_cell_empty(cell.get_x(), cell.get_y()):
-			var left_amount : float = 0;
-			var left_cell : Liquid = get_cell_by_position(cell.get_x() - 1, cell.get_y());
-			if left_cell:
-				left_amount = left_cell.new_amount;
-			
-			if left_amount < cell.new_amount:
-				var flow : float = min((cell.new_amount - left_amount) / 1.2, max_flow_value);
 
-				if flow > min_flow_value:
-					if !left_cell:
-						left_cell = _create_cell(cell.get_x() - 1, cell.get_y(), 0);
-						new_cells.append(left_cell);
-						_cells_positions[left_cell.get_uid()] = left_cell;
-					left_cell.new_amount += flow;
-					cell.new_amount -= flow;
-					#print("flow left: ", cell.new_amount, " -> ", left_cell.new_amount, " (%f)" % [flow]);
+		_apply_horizontal_rule(cell, new_cells);
 		
 		if cell.new_amount <= 0:
 			request_queue_free(cell);
 			continue;
-		if _is_map_right_cell_empty(cell.get_x(), cell.get_y()):
-			var right_amount : float = 0;
-			var right_cell : Liquid = get_cell_by_position(cell.get_x() + 1, cell.get_y());
-			if right_cell:
-				right_amount = right_cell.new_amount;
-			
-			if right_amount < cell.new_amount:
-				var flow : float = min((cell.new_amount - right_amount) / 1.2, max_flow_value);
-				
-				if flow > min_flow_value:
-					if !right_cell:
-						right_cell = _create_cell(cell.get_x() + 1, cell.get_y(), 0);
-						new_cells.append(right_cell);
-						_cells_positions[right_cell.get_uid()] = right_cell;
-					right_cell.new_amount += flow;
-					cell.new_amount -= flow;
-					#print("flow right: ", cell.new_amount, " -> ", right_cell.new_amount, " (%f)" % [flow]);
-		
-		if cell.new_amount <= 0:
 			request_queue_free(cell);
 			continue;
-		if _is_map_top_cell_empty(cell.get_x(), cell.get_y()):
-			var top_cell : Liquid = get_cell_by_position(cell.get_x(), cell.get_y() - 1);
-			var flow : float = min(max(cell.new_amount - 1.0, 0), max_flow_value);
-			
-			if flow != 0:
-				if !top_cell:
-					top_cell = _create_cell(cell.get_x(), cell.get_y() - 1, 0);
-					new_cells.append(top_cell);
-					_cells_positions[top_cell.get_uid()] = top_cell;
-				top_cell.new_amount += flow; 
-				cell.new_amount -= flow;
-				#print("flow top: ", cell.new_amount, " -> ", top_cell.new_amount, " (%f)" % [flow]);
+
+		_apply_decompression_rule(cell, new_cells);
+		
 		if cell.new_amount <= 0:
 			request_queue_free(cell);
 	
+	# Add new cells
 	for cell in new_cells:
 		_cells.append(cell);
 
+	# Update cell's values
 	_total_amount = 0;
 	var _updated : bool = false;
 	for cell in _cells:
@@ -210,6 +184,7 @@ func _update_simulation():
 			cell.changed.emit(self);
 		#print("cell (%d, %d): %f" % [cell.get_x(), cell.get_y(), cell.amount])
 		_total_amount += cell.amount;
+	
 	return _updated;
 func _create_cell(x : int, y : int, amount : float):
 	var instance : Liquid = liquid.instantiate();
@@ -217,6 +192,8 @@ func _create_cell(x : int, y : int, amount : float):
 	instance.created.emit(self);
 	_container.add_child(instance);
 	return instance;
+
+#region Getters
 func _get_map_cell_by_position(x : int, y : int, map : TileMapLayer = _map):
 	var qx = x * _quadrant_size;
 	var qy = y * _quadrant_size;
@@ -225,8 +202,95 @@ func _get_map_cell_by_position(x : int, y : int, map : TileMapLayer = _map):
 	var yy = floor(qy / float(map.rendering_quadrant_size));
 
 	return map.get_cell_source_id(Vector2(xx, yy));
+func _get_fall_flow():
+	return _fall_flow;
+func _get_decompression_flow():
+	return _decompression_flow;
+func _get_left_flow():
+	return _left_flow;
+func _get_right_flow():
+	return _right_flow;
+#endregion
+
+#region Rules
+func _apply_decompression_rule(cell : Liquid, new_cells : Array[Liquid]):
+	if _is_map_top_cell_empty(cell.get_x(), cell.get_y()):
+		var top_cell : Liquid = get_cell_by_position(cell.get_x(), cell.get_y() - 1);
+		var flow : float = min(max(cell.new_amount - 1.0, 0), max_flow_value);
+		
+		if flow != 0:
+			if !top_cell:
+				top_cell = _create_cell(cell.get_x(), cell.get_y() - 1, 0);
+				new_cells.append(top_cell);
+				_cells_positions[top_cell.get_uid()] = top_cell;
+			top_cell.new_amount += flow; 
+			cell.new_amount -= flow;
+			_decompression_flow += 1;
+			#print("flow top: ", cell.new_amount, " -> ", top_cell.new_amount, " (%f)" % [flow]);
+func _apply_fall_rule(cell : Liquid, new_cells : Array[Liquid]):
+	if _is_map_bottom_cell_empty(cell.get_x(), cell.get_y()):
+		var bottom_amount : float = 0;
+		var bottom_cell : Liquid = get_cell_by_position(cell.get_x(), cell.get_y() + 1);
+		if bottom_cell:
+			bottom_amount = bottom_cell.new_amount;
+		var flow : float = clamp(1 - bottom_amount, 0, min(max_flow_value, cell.new_amount));
+		
+		if flow != 0:
+			if !bottom_cell:
+				bottom_cell = _create_cell(cell.get_x(), cell.get_y() + 1, 0);
+				new_cells.append(bottom_cell);
+				_cells_positions[bottom_cell.get_uid()] = bottom_cell;
+			bottom_cell.new_amount += flow;
+			cell.bottom_has_flow = true;
+			cell.new_amount -= flow;
+			_fall_flow += 1;
+			#print("flow bottom: ", cell.new_amount, " -> ", bottom_cell.new_amount, " (%f)" % [flow]);
+func _apply_horizontal_rule(cell : Liquid, new_cells : Array[Liquid]):
+	var left_is_empty = _is_map_left_cell_empty(cell.get_x(), cell.get_y());
+	var right_is_empty = _is_map_right_cell_empty(cell.get_x(), cell.get_y());
+	var distribution = 1;
+
+	var left_amount : float = 0;
+	var left_cell : Liquid;
+	if left_is_empty:
+		distribution += 1;
+		left_cell = get_cell_by_position(cell.get_x() - 1, cell.get_y());
+	if left_cell:
+		left_amount = left_cell.new_amount;
+
+	var right_amount : float = 0;
+	var right_cell : Liquid;
+	if right_is_empty:
+		distribution += 1;
+		right_cell = get_cell_by_position(cell.get_x() + 1, cell.get_y());
+	if right_cell:
+		right_amount = right_cell.new_amount;
+
+	var accurate : float = min((cell.new_amount + left_amount + right_amount) / distribution, max_flow_value * distribution);
+	if accurate > min_amount * distribution && _someone_is_different(cell.new_amount, left_amount, right_amount):
+		if left_is_empty:
+			_apply_horizontal_rule_on(true, cell, left_cell, new_cells, accurate);
+		if right_is_empty:
+			_apply_horizontal_rule_on(false, cell, right_cell, new_cells, accurate);
+func _apply_horizontal_rule_on(left : bool, cell : Liquid, neighbor_cell : Liquid, new_cells : Array[Liquid], flow : float):
+	if !neighbor_cell:
+		neighbor_cell = _create_cell(cell.get_x() + (-1 if left else 1), cell.get_y(), 0);
+		new_cells.append(neighbor_cell);
+		_cells_positions[neighbor_cell.get_uid()] = neighbor_cell;
+	neighbor_cell.new_amount = flow;
+	cell.new_amount = flow;
+	if left:
+		_left_flow += 1;
+	else:
+		_right_flow += 1;
+	#print("flow left: " if left else "flow right: ", cell.new_amount, " -> ", neighbor_cell.new_amount, " (%f)" % [flow]);
+#endregion
 
 #region Checking
+func _someone_is_different(a : float, b : float, c : float):
+	return !(_is_equal(a, b) && _is_equal(a, c) &&_is_equal(b, c));
+func _is_equal(a : float, b : float):
+	return abs(a - b) < epsilon;
 func _is_map_top_cell_empty(x : int, y : int):
 	return _is_map_cell_empty(x, y - 1, Vector2i(0, -1));
 func _is_map_bottom_cell_empty(x : int, y : int):
@@ -344,6 +408,14 @@ func refresh_cell_neighboors(cell : Liquid) -> void:
 func refresh_cell_sprite(cell : Liquid) -> void:
 	var translation : float;
 	var scale : float = min(cell.amount, 1);
+	if cell.opacity_is_amount:
+		var max_opacity : float = cell.max_opacity;
+		var min_opacity : float = cell.min_opacity;
+		if cell.top:
+			min_opacity = (max_opacity * 0.8);
+		elif cell.bottom && cell.bottom.new_amount >= 1.0:
+			min_opacity = (max_opacity / 2.0) + scale;
+		cell.sprite.modulate.a = min(max(scale, min_opacity), max_opacity);
 
 	if cell.top && (cell.top.amount >= min_amount || cell.top.bottom_has_flow):
 		scale = 1;
