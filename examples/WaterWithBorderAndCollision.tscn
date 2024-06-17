@@ -1,0 +1,44 @@
+[gd_scene load_steps=7 format=3 uid="uid://dcre3pq1g266o"]
+
+[ext_resource type="Script" path="res://examples/WaterWithBorderAndCollision.gd" id="1_scpyx"]
+[ext_resource type="Texture2D" uid="uid://drth86xekjkfd" path="res://examples/WaterBorder.png" id="3_1ivc5"]
+[ext_resource type="Script" path="res://examples/2_with_border_and_collision/external_addons/nine_patch_sprite_2d/nine_patch_sprite_2d.gd" id="3_61lxm"]
+
+[sub_resource type="Gradient" id="Gradient_bw88v"]
+offsets = PackedFloat32Array(0.00694444)
+colors = PackedColorArray(1, 1, 1, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_6uoyx"]
+gradient = SubResource("Gradient_bw88v")
+width = 16
+height = 16
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ma8ck"]
+size = Vector2(14, 14)
+
+[node name="Water" type="Node2D" node_paths=PackedStringArray("border", "sprite")]
+script = ExtResource("1_scpyx")
+border = NodePath("Border")
+sprite = NodePath("Sprite")
+snap_pixel = true
+opacity_is_amount = false
+
+[node name="Border" type="Node2D" parent="."]
+modulate = Color(1, 1, 1, 0.5)
+script = ExtResource("3_61lxm")
+texture = ExtResource("3_1ivc5")
+size = Vector2(18, 18)
+patch_margin_left = 1
+patch_margin_top = 1
+patch_margin_right = 1
+patch_margin_bottom = 1
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture = SubResource("GradientTexture2D_6uoyx")
+
+[node name="Area2D" type="Area2D" parent="Sprite"]
+collision_layer = 0
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite/Area2D"]
+shape = SubResource("RectangleShape2D_ma8ck")

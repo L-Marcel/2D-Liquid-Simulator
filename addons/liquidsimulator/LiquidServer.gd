@@ -1,15 +1,12 @@
 class_name LiquidServer
 extends Node
 
-# TODO: Atualizar lista de propriedades no editor
-# TODO: Limpar células fora do mapa
-# TODO: Impedir de criar células dentro dos tiles
-
 ## Required for liquid simulation.
 ## 
 ## This class is responsible for managing the liquid simulation. [br]
 ## [color=yellow]Warning:[/color] The simulation automatically starts when a liquid is added or removed and stops when needed to optimize performance.
 
+#region Variables
 ## The liquid scene to be used as a [Liquid] cell.
 @export var liquid : PackedScene;
 ## The refresh rate of the simulation.
@@ -29,15 +26,18 @@ extends Node
 @export var _maps : Array[LiquidMap];
 var _map : TileMapLayer;
 
-@export_subgroup("Container")
+@export_group("Container")
 ## If [code]true[/code], the map will be used as the container.
-@export var _use_map_as_container : bool = true;
-## If [code]true[/code], the container position will be changed to the map position.
-@export var _change_container_position : bool = true;
+@export var _use_map_as_container : bool = true :
+	set(value):
+		_use_map_as_container = value;
+		notify_property_list_changed();
 ## The container to be used to put the [Liquid] instances.
 @export var _container : Node2D;
+## If [code]true[/code], the container position will be changed to the map position.
+@export var _change_container_position : bool = true;
 
-@export_subgroup("Iterations")
+@export_group("Iterations")
 ## The minimum amount of iterations before a cell is removed.
 @export_range(0, 100, 1) var cleanup_min_iterations : int = 5 :
 	set(value):
@@ -48,27 +48,21 @@ var _map : TileMapLayer;
 	set(value):
 		if value > 0:
 			max_iterations = value;
+## The maximum number of falls a cell can have to not be considered outside the map. [br]
+## [color=yellow]Warning: [/color]Cells considered outside the map are excluded so that they do not fall forever.
+@export_range(10, 1000, 1) var max_falls : int = 100;
 
-@export_subgroup("Amount")
+@export_group("Amount")
 ## The maximum amount of [Liquid] that can be in a cell.
 @export_range(0.0, 1.0, 0.001) var max_amount : float = 1.0;
 ## The minimum amount of [Liquid] that can be in a cell.
 @export_range(0.0, 1.0, 0.001) var min_amount : float = 0.005;
 
-@export_subgroup("Flow")
+@export_group("Flow")
 ## The maximum flow value.
 @export_range(0.001, 1.0, 0.001) var max_flow_value : float = 1.0;
 ## The minimum [b]horizontal[/b] flow value.
 @export_range(0.001, 1.0, 0.001) var min_flow_value : float = 0.005;
-
-# Region Signals
-## Emitted when the simulation starts.
-signal started;
-## Emitted when the simulation stops.
-signal stopped;
-## Emitted when the simulation is updated.
-signal updated;
-#endregion
 
 var _started : bool = false :
 	set(value):
@@ -93,15 +87,26 @@ var _right_flow : int = 0;
 
 var _cells : Array[Liquid] = [];
 var _cells_positions : Dictionary = {};
+#endregion
+
+#region Signals
+## Emitted when the simulation starts.
+signal started;
+## Emitted when the simulation stops.
+signal stopped;
+## Emitted when the simulation is updated.
+signal updated;
+#endregion
 
 func _ready():
 	assert(_maps.size() > 0, "Need to set at least one TileMapLayer!");
 	for i in _maps.size():
-		assert(_maps[i].tile_map_path, "TileMapLayer %f is not set!" % [i]);
+		assert(_maps[i].tile_map_path, "TileMapLayer %d is not set!" % [i]);
 		var map_node = get_node(_maps[i].tile_map_path);
-		assert(map_node, "TileMapLayer %f is not found!" % [i]);
+		assert(map_node, "TileMapLayer %d is not found!" % [i]);
 		_maps[i].tile_map = map_node;
-	
+		var factor : float = float(map_node.rendering_quadrant_size) / _quadrant_size;
+		assert(factor >= 1 && floor(factor) == factor, "TileMapLayer %d quadrant size is not compatible with LiquidServer quadrant size!" % [i]);
 	_map = _maps[0].tile_map;
 	if _use_map_as_container:
 		_container = _map;
@@ -112,9 +117,24 @@ func _ready():
 	Performance.add_custom_monitor("liquid/total_amount", get_total_amount);
 	Performance.add_custom_monitor("liquid/is_running", func(): return int(is_running()));
 	Performance.add_custom_monitor("liquid/fall_flow", _get_fall_flow);
-	Performance.add_custom_monitor("liquid/compression_flow", _get_decompression_flow);
+	Performance.add_custom_monitor("liquid/decompression_flow", _get_decompression_flow);
 	Performance.add_custom_monitor("liquid/left_flow", _get_left_flow);
 	Performance.add_custom_monitor("liquid/right_flow", _get_right_flow);
+
+	_map.update_internals();
+	var coords : Array[Vector2i] = [];
+	for map_child in _map.get_children():
+		if map_child is Liquid:
+			var coord = _map.local_to_map(map_child.position);
+			_map.erase_cell(coord);
+			coords.append(coord);
+	
+	var factor : int = int(_map.rendering_quadrant_size / _quadrant_size);
+	for coord in coords:
+		for x in factor:
+			for y in factor:
+				add_liquid((coord.x * factor) + x, (coord.y * factor) + y, 1.0);
+
 	start();
 func _process(delta):
 	if not _started:
@@ -141,6 +161,10 @@ func _update_simulation():
 	for cell in _cells:
 		cell.reset_neighbors();
 		cell.bottom_has_flow = false;
+
+		if cell.falls > max_falls:
+			request_queue_free(cell);
+			continue;
 
 		if cell.amount <= min_amount && !_is_map_cell_empty(cell.get_x(), cell.get_y() + 1) && (cell.floor_can_absorb || cell.amount <= 0):
 			request_queue_free(cell);
@@ -191,6 +215,7 @@ func _create_cell(x : int, y : int, amount : float):
 	instance.config(x, y, amount, self);
 	instance.created.emit(self);
 	_container.add_child(instance);
+	refresh_cell(instance)
 	return instance;
 
 #region Getters
@@ -240,11 +265,14 @@ func _apply_fall_rule(cell : Liquid, new_cells : Array[Liquid]):
 				bottom_cell = _create_cell(cell.get_x(), cell.get_y() + 1, 0);
 				new_cells.append(bottom_cell);
 				_cells_positions[bottom_cell.get_uid()] = bottom_cell;
+				bottom_cell.falls = cell.falls + 1;
 			bottom_cell.new_amount += flow;
 			cell.bottom_has_flow = true;
 			cell.new_amount -= flow;
 			_fall_flow += 1;
 			#print("flow bottom: ", cell.new_amount, " -> ", bottom_cell.new_amount, " (%f)" % [flow]);
+	else:
+		cell.falls = 0;
 func _apply_horizontal_rule(cell : Liquid, new_cells : Array[Liquid]):
 	var left_is_empty = _is_map_left_cell_empty(cell.get_x(), cell.get_y());
 	var right_is_empty = _is_map_right_cell_empty(cell.get_x(), cell.get_y());
@@ -303,7 +331,7 @@ func _is_map_cell_empty(x : int, y : int, increments = Vector2i.ZERO, one_way : 
 	for map in _maps:
 		var map_cell = _get_map_cell_by_position(x, y, map.tile_map);
 
-		if _get_map_cell_by_position(x - increments.x, y - increments.y, map.tile_map) != -1:
+		if map.one_way_collision && _get_map_cell_by_position(x - increments.x, y - increments.y, map.tile_map) != -1:
 			continue;
 
 		if map_cell != -1 && (!map.one_way_collision || one_way):

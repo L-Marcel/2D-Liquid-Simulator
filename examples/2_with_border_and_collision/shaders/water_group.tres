@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://collpa8uebpv2"]
+
+[ext_resource type="Shader" path="res://examples/2_with_border_and_collision/shaders/water_group.gdshader" id="1_b7i4o"]
+
+[resource]
+shader = ExtResource("1_b7i4o")
+shader_parameter/water_color = Color(0.560784, 0.827451, 1, 0.607843)
+shader_parameter/border_color = Color(0.180392, 0.133333, 0.184314, 1)
+shader_parameter/border_mask_alpha = 0.75

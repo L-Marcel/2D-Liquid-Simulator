@@ -1,6 +1,7 @@
-[gd_resource type="TileSet" load_steps=13 format=3 uid="uid://c8wk4uvt8kkhe"]
+[gd_resource type="TileSet" load_steps=15 format=3 uid="uid://c8wk4uvt8kkhe"]
 
-[ext_resource type="Texture2D" uid="uid://timkfa52sr01" path="res://examples/tiles.png" id="2_6ojvo"]
+[ext_resource type="Texture2D" uid="uid://timkfa52sr01" path="res://examples/Tiles.png" id="1_nrvit"]
+[ext_resource type="PackedScene" uid="uid://b4fssv5ogweg" path="res://examples/Water.tscn" id="2_xvati"]
 
 [sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_s520x"]
 polygon = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
@@ -33,7 +34,7 @@ polygon = PackedVector2Array(-8, -8, 8, -8, 8, 6, 7, 6, 7, 7, 6, 7, 6, 8, -6, 8,
 polygon = PackedVector2Array(-8, -8, 8, -8, 8, 6, 7, 6, 7, 7, 6, 7, 6, 8, -6, 8, -6, 7, -7, 7, -7, 6, -8, 5.96875)
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_e0ksi"]
-texture = ExtResource("2_6ojvo")
+texture = ExtResource("1_nrvit")
 0:0/0 = 0
 0:0/0/terrain_set = 0
 0:0/0/terrain = 0
@@ -484,6 +485,10 @@ texture = ExtResource("2_6ojvo")
 11:3/0/terrains_peering_bit/left_side = 0
 11:3/0/terrains_peering_bit/top_side = 0
 
+[sub_resource type="TileSetScenesCollectionSource" id="TileSetScenesCollectionSource_lqcnw"]
+resource_name = "water"
+scenes/1/scene = ExtResource("2_xvati")
+
 [resource]
 occlusion_layer_0/light_mask = 1
 occlusion_layer_1/light_mask = 0
@@ -497,3 +502,4 @@ terrain_set_0/mode = 0
 terrain_set_0/terrain_0/name = "Terrain 0"
 terrain_set_0/terrain_0/color = Color(0.5, 0.34375, 0.25, 1)
 sources/0 = SubResource("TileSetAtlasSource_e0ksi")
+sources/1 = SubResource("TileSetScenesCollectionSource_lqcnw")

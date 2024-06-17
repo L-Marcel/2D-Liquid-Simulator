@@ -1,8 +1,6 @@
 class_name Liquid
 extends Node2D
 
-# TODO: Atualizar lista de propriedades no editor
-
 ## A basic liquid class that can be used to create any kind of liquid.
 ##
 ## Used by [LiquidServer] to simulate liquid behavior.
@@ -74,6 +72,8 @@ var border_right : bool = false;
 var bottom_has_flow : bool = false;
 ## Number of iterations of this liquid in [LiquidServer].
 var iteration : int = 0;
+## Number of falls, one fall is equivalent to one [member LiquidServer._quadrant_size].
+var falls : int = 0;
 
 ## Returns the hash of the position.
 static func hash_position(x : int, y : int):

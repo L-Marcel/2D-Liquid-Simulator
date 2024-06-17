@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://timkfa52sr01"
-path="res://.godot/imported/tiles.png-30d46e8cfead4111e334eea676601e1d.ctex"
+uid="uid://drth86xekjkfd"
+path="res://.godot/imported/WaterBorder.png-4e8c3e7b06473391cd63526c4ec03b8d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://examples/tiles.png"
-dest_files=["res://.godot/imported/tiles.png-30d46e8cfead4111e334eea676601e1d.ctex"]
+source_file="res://examples/WaterBorder.png"
+dest_files=["res://.godot/imported/WaterBorder.png-4e8c3e7b06473391cd63526c4ec03b8d.ctex"]
 
 [params]
 
