@@ -2,7 +2,6 @@ class_name Liquid
 extends Node2D
 
 ## A basic liquid class that can be used to create any kind of liquid.
-##
 ## Used by [LiquidServer] to simulate liquid behavior.
 
 ## The sprite that will be used to represent the liquid.
