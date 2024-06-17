@@ -2,7 +2,6 @@ class_name LiquidServer
 extends Node
 
 ## Required for liquid simulation.
-## 
 ## This class is responsible for managing the liquid simulation. [br]
 ## [color=yellow]Warning:[/color] The simulation automatically starts when a liquid is added or removed and stops when needed to optimize performance.
 
