@@ -2,7 +2,6 @@ class_name LiquidMap
 extends Resource
 
 ## Used by [LiquidServer] to pass the [TileMapLayer] to the server.
-##
 ## It's needed to get [one_way_collision] property since tile's polygon will not be checked.
 
 ## The [TileMapLayer] to use.
