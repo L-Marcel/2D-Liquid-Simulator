@@ -372,7 +372,7 @@ func clear(stop_after : bool = true) -> void:
 		stop();
 ## Add an amount of [Liquid] in a cell.
 func add_liquid(x : int, y : int, amount : float) -> void:
-	if !_is_map_cell_empty(x, y):
+	if !_is_map_cell_empty(x, y) || amount < 0:
 		return;
 	var cell : Liquid = get_cell_by_position(x, y);
 	if !cell:
@@ -384,13 +384,16 @@ func add_liquid(x : int, y : int, amount : float) -> void:
 	start();
 ## Remove an amount of [Liquid] in a cell.
 func remove_liquid(x : int, y : int, amount : float) -> void:
+	if amount < 0:
+		return;
 	var cell : Liquid = get_cell_by_position(x, y);
 	if cell:
 		cell.new_amount -= amount;
+		cell.new_amount = max(cell.new_amount, 0);
 		start();
 ## Update the amount of [Liquid] in a cell.
 func update_liquid(x : int, y : int, amount : float) -> void:
-	if !_is_map_cell_empty(x, y):
+	if !_is_map_cell_empty(x, y) || amount < 0:
 		return;
 	var cell : Liquid = get_cell_by_position(x, y);
 	if !cell:
