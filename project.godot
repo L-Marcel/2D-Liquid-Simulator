@@ -10,8 +10,14 @@ config_version=5
 
 [application]
 
-config/name="LiquidSimulator"
-config/features=PackedStringArray("4.3", "GL Compatibility")
+config/name="2D Liquid Simulator"
+config/version="1.0.0"
+config/features=PackedStringArray("4.2", "GL Compatibility")
+config/icon="res://addons/liquidsimulator/icons/icon.png"
+
+[dotnet]
+
+project/assembly_name="LiquidSimulator"
 
 [editor_plugins]
 

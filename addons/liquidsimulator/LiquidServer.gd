@@ -24,7 +24,7 @@ extends Node
 ## The [LiquidMap] array to be used. [br]
 ## [color=yellow]Warning:[/color] More maps means less performance.
 @export var _maps : Array[LiquidMap];
-var _map : TileMapLayer;
+var _map : TileMap;
 
 @export_group("Container")
 ## If [code]true[/code], the map will be used as the container.
@@ -99,34 +99,34 @@ signal updated;
 #endregion
 
 func _ready():
-	assert(_maps.size() > 0, "Need to set at least one TileMapLayer!");
+	assert(_maps.size() > 0, "Need to set at least one TileMap!");
 	for i in _maps.size():
-		assert(_maps[i].tile_map_path, "TileMapLayer %d is not set!" % [i]);
+		assert(_maps[i].tile_map_path, "TileMap %d is not set!" % [i]);
 		var map_node = get_node(_maps[i].tile_map_path);
-		assert(map_node, "TileMapLayer %d is not found!" % [i]);
+		assert(map_node, "TileMap %d is not found!" % [i]);
 		_maps[i].tile_map = map_node;
 		var factor : float = float(map_node.rendering_quadrant_size) / _quadrant_size;
-		assert(factor >= 1 && floor(factor) == factor, "TileMapLayer %d quadrant size is not compatible with LiquidServer quadrant size!" % [i]);
+		assert(factor >= 1 && floor(factor) == factor, "TileMap %d quadrant size is not compatible with LiquidServer quadrant size!" % [i]);
 	_map = _maps[0].tile_map;
 	if _use_map_as_container:
 		_container = _map;
 	assert(_container, "Container is not set!");
 	if _change_container_position:
 		_container.position = _map.position;
-	Performance.add_custom_monitor("liquid/instances", _cells.size);
-	Performance.add_custom_monitor("liquid/total_amount", get_total_amount);
-	Performance.add_custom_monitor("liquid/is_running", func(): return int(is_running()));
-	Performance.add_custom_monitor("liquid/fall_flow", _get_fall_flow);
-	Performance.add_custom_monitor("liquid/decompression_flow", _get_decompression_flow);
-	Performance.add_custom_monitor("liquid/left_flow", _get_left_flow);
-	Performance.add_custom_monitor("liquid/right_flow", _get_right_flow);
+	Performance.add_custom_monitor("Liquid Simulator/instances", func(): return _cells.size());
+	Performance.add_custom_monitor("Liquid Simulator/total_amount", get_total_amount);
+	Performance.add_custom_monitor("Liquid Simulator/is_running", func(): return int(is_running()));
+	Performance.add_custom_monitor("Liquid Simulator/fall_flow", _get_fall_flow);
+	Performance.add_custom_monitor("Liquid Simulator/decompression_flow", _get_decompression_flow);
+	Performance.add_custom_monitor("Liquid Simulator/left_flow", _get_left_flow);
+	Performance.add_custom_monitor("Liquid Simulator/right_flow", _get_right_flow);
 
 	_map.update_internals();
 	var coords : Array[Vector2i] = [];
 	for map_child in _map.get_children():
 		if map_child is Liquid:
 			var coord = _map.local_to_map(map_child.position);
-			_map.erase_cell(coord);
+			_map.erase_cell(0, coord);
 			coords.append(coord);
 	
 	var factor : int = int(_map.rendering_quadrant_size / _quadrant_size);
@@ -219,14 +219,14 @@ func _create_cell(x : int, y : int, amount : float):
 	return instance;
 
 #region Getters
-func _get_map_cell_by_position(x : int, y : int, map : TileMapLayer = _map):
+func _get_map_cell_by_position(x : int, y : int, map : TileMap = _map):
 	var qx = x * _quadrant_size;
 	var qy = y * _quadrant_size;
 
 	var xx = floor(qx / float(map.rendering_quadrant_size));
 	var yy = floor(qy / float(map.rendering_quadrant_size));
 
-	return map.get_cell_source_id(Vector2(xx, yy));
+	return map.get_cell_source_id(0, Vector2(xx, yy));
 func _get_fall_flow():
 	return _fall_flow;
 func _get_decompression_flow():
@@ -484,7 +484,7 @@ func get_quadrant_size() -> int:
 func get_total_amount() -> float:
 	return _total_amount;
 ## Get simulation's map.
-func get_map() -> TileMapLayer:
+func get_map() -> TileMap:
 	return _map;
 ## Get simulation's container.
 func get_container() -> Node2D:
