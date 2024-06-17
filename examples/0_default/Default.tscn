@@ -24,7 +24,6 @@ water_server = NodePath("LiquidServer")
 script = ExtResource("1_dppj5")
 liquid = ExtResource("2_fk8j4")
 _maps = Array[ExtResource("3_k6xf4")]([SubResource("Resource_fq1pl"), SubResource("Resource_4kye2")])
-max_falls = null
 
 [node name="Back" type="TileMapLayer" parent="."]
 modulate = Color(0.435192, 0.435192, 0.435192, 1)
