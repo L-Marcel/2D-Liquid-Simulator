@@ -2,6 +2,9 @@
 
 Originally created by [Tterrasson](https://github.com/tterrasson) ([repository](https://github.com/tterrasson/liquid-simulator-godot)) and recreated by [me](https://github.com/L-Marcel), this plugin offers a set of three 2D nodes to simulate the behavior of liquids.
 
+## Warning
+Although I have a version of this plugin for Godot 4.2, the next updates I release will often be for the newer version of Godot (4.3+), as it is tiring to change the code twice or more.
+
 ## Tutorial
 I recorded [this video](https://youtu.be/BEGQCnjjcbY) showing the simulator in operation and teaching how to use it. But I apologize, because in it I am limited to my mother tongue, Portuguese.
 

@@ -121,18 +121,18 @@ func _ready():
 	Performance.add_custom_monitor("liquid/right_flow", _get_right_flow);
 
 	_map.update_internals();
-	var coords : Array[Vector2i] = [];
+	var coords : Array[Vector3] = [];
 	for map_child in _map.get_children():
 		if map_child is Liquid:
 			var coord = _map.local_to_map(map_child.position);
+			coords.append(Vector3(coord.x, coord.y, map_child.default_amount));
 			_map.erase_cell(coord);
-			coords.append(coord);
 	
 	var factor : int = int(_map.rendering_quadrant_size / _quadrant_size);
 	for coord in coords:
 		for x in factor:
 			for y in factor:
-				add_liquid((coord.x * factor) + x, (coord.y * factor) + y, 1.0);
+				add_liquid((coord.x * factor) + x, (coord.y * factor) + y, coord.z);
 
 	start();
 func _process(delta):

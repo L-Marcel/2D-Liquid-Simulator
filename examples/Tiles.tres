@@ -1,7 +1,8 @@
-[gd_resource type="TileSet" load_steps=15 format=3 uid="uid://c8wk4uvt8kkhe"]
+[gd_resource type="TileSet" load_steps=16 format=3 uid="uid://c8wk4uvt8kkhe"]
 
 [ext_resource type="Texture2D" uid="uid://timkfa52sr01" path="res://examples/Tiles.png" id="1_nrvit"]
 [ext_resource type="PackedScene" uid="uid://b4fssv5ogweg" path="res://examples/Water.tscn" id="2_xvati"]
+[ext_resource type="PackedScene" uid="uid://bm6a2pjd43307" path="res://examples/HalfWater.tscn" id="3_f26ac"]
 
 [sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_s520x"]
 polygon = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
@@ -488,6 +489,7 @@ texture = ExtResource("1_nrvit")
 [sub_resource type="TileSetScenesCollectionSource" id="TileSetScenesCollectionSource_lqcnw"]
 resource_name = "water"
 scenes/1/scene = ExtResource("2_xvati")
+scenes/2/scene = ExtResource("3_f26ac")
 
 [resource]
 occlusion_layer_0/light_mask = 1

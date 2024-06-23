@@ -16,6 +16,8 @@ extends Node2D
 @export var max_opacity : float = 1;
 ## The min value of [member Liquid.sprite.modulate.a].
 @export var min_opacity : float = 0;
+## The default amount of a previously added liquid in tile map.
+@export var default_amount : float = 1.0;
 
 # Region Signals
 ## Emitted when refreshed by [method LiquidServer.refresh_cell] is called.
